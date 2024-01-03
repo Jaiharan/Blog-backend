@@ -14,12 +14,15 @@ const multer = require('multer');
 const fs = require('fs');
 const uploadMiddleware = multer({ dest: 'uploads/' });
 const path = require('path');
+const { error } = require('console');
 const salt = bcrypt.genSaltSync(10);
 const secret = 'bdcwi6eiydbbeu63g4ug22dxe82';
 
+
+app.use(cookieParser());
 app.use(cors({credentials:true, origin:'http://localhost:3001'}))
 app.use(express.json());
-app.use(cookieParser());
+
 
 app.use('/uploads', express.static(__dirname + '/uploads'));
 
@@ -46,7 +49,7 @@ app.post('/login', async(req,res)=>{
   const {username,password} = req.body;
   const userDoc = await User.findOne({username});
   const passOk = bcrypt.compareSync(password, userDoc.password)
-  if(passOk){
+  if(userDoc && passOk){
     //logged in
     jwt.sign({username, id:userDoc._id}, secret, {}, (err,token) =>{
       if(err) throw err;
@@ -112,7 +115,7 @@ app.put('/post', uploadMiddleware.single('file'),async(req,res)=>{
     const postDoc = await Post.findById(id);
     const isAuthor = JSON.stringify(postDoc.author) === JSON.stringify(info.id);
     if(!isAuthor) {return res.status(400).json('not the author');}
-    await postDoc.updateOn({
+    await postDoc.updateOne({
       title,
       summary,
       content,
@@ -150,14 +153,24 @@ app.delete('/post/:id', async(req,res)=>{
 //   }
 // })
 
-app.get('/post', async(req,res)=>{
-  res.json(
-    await Post.find()
-    .populate('author', ['username'])
-    .sort({createdAt: -1})
-    .limit(20)
-    );
+app.get('/post', async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const pageSize = parseInt(req.query.pageSize) || 20;
+
+  try {
+    const posts = await Post.find()
+      .populate('author', ['username'])
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * pageSize)
+      .limit(pageSize);
+
+    res.json(posts);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
+
 
 app.get('/post/:id', async(req,res)=>{
   const {id} = req.params;
