@@ -28,7 +28,7 @@ app.use('/uploads', express.static(__dirname + '/uploads'));
 
 
 mongoose.set("strictQuery", false);
-mongoose.connect('mongodb+srv://Blog:XG90NtYEvwsya2f2@cluster0.qojvyga.mongodb.net/?retryWrites=true&w=majority');
+mongoose.connect(MONGODB__URL);
 
 app.post('/register', async (req,res) => {
   const {username,password} = req.body;
